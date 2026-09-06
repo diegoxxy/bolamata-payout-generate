@@ -190,7 +190,7 @@ function App() {
 
         // Sub-teks di bawah logo
         ctx.textAlign = 'left';
-        ctx.fillStyle = '#80eea9';
+        ctx.fillStyle = '#ffffff';
         ctx.font = '600 10px Inter, sans-serif';
         ctx.fillText('Start Clipping & Earn Comissions!', logoX, logoY + logoHeight + 14);
         resolve();
@@ -201,7 +201,7 @@ function App() {
         ctx.font = '900 28px Inter, sans-serif';
         ctx.fillText('BOLAMATA', 60, canvas.height - 75);
 
-        ctx.fillStyle = '#80eea9';
+        ctx.fillStyle = '#ffffff';
         ctx.font = '600 10px Inter, sans-serif';
         ctx.fillText('Start Clipping & Earn Comissions!', 60, canvas.height - 55);
         resolve();
