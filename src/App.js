@@ -9,7 +9,6 @@ const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1v
 const TEMPLATE_IMAGE_NAME = '/template-payout.png';
 // =========================================================================
 
-// Helper Function untuk generate format Tanggal + Jam WIB
 const getFormattedWibDateTime = () => {
   const now = new Date();
   const optionsDate = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Jakarta' };
@@ -90,14 +89,19 @@ function App() {
     if (!clipperRow) return;
 
     const sheetName = getFieldValue(clipperRow, ['Nama Lengkap', 'Nama']) || 'Diego';
+    
     const tx = getFieldValue(clipperRow, [
       'Total Konten Clipping',
       'Total Transaction',
       'Total Konten',
-      'Total Video'
+      'Total Video',
+      'Convert Point Engagement'
     ]) || '100';
 
-    const nominal = getFieldValue(clipperRow, [
+    // TAMBAHAN: Mencakup header 'Total Payout Clippers' dari Google Sheets
+    const rawNominal = getFieldValue(clipperRow, [
+      'Total Payout Clippers',
+      'Total Payout',
       'Nominal Paid',
       'Nominal Payout',
       'Nominal'
@@ -105,7 +109,14 @@ function App() {
 
     setClipperName(sheetName);
     setTotalVideo(tx);
-    if (nominal) setManualNominal(nominal);
+
+    if (rawNominal) {
+      // Bersihkan karakter non-digit (menghapus Rp, koma, titik, spasi)
+      const cleanedNominal = rawNominal.replace(/[^0-9]/g, '');
+      if (cleanedNominal) {
+        setManualNominal(cleanedNominal);
+      }
+    }
   };
 
   const handleSelectClipper = (e) => {
