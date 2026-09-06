@@ -184,6 +184,30 @@ function App() {
     // -----------------------------------------------------------------
     // GENERATE QR CODE DISCORD (Kanan Bawah)
     // -----------------------------------------------------------------
+    // -----------------------------------------------------------------
+    // LOAD LOGO BOLAMATA (Kiri Bawah)
+    // -----------------------------------------------------------------
+    const logoImg = new Image();
+    logoImg.src = process.env.PUBLIC_URL + '/logo-bolamata.png';
+
+    await new Promise((resolve) => {
+      logoImg.onload = () => {
+        const logoWidth = 220;
+        const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+        const logoX = 60;
+        const logoY = canvas.height - 100;
+        ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
+        resolve();
+      };
+      logoImg.onerror = () => {
+        // Fallback teks jika file logo-bolamata.png tidak ditemukan
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 28px Inter, sans-serif';
+        ctx.fillText('BOLAMATA', 60, canvas.height - 70);
+        resolve();
+      };
+    });
     try {
       const fullInviteUrl = discordInvite.startsWith('http') ? discordInvite : `https://${discordInvite}`;
       const qrDataUrl = await QRCode.toDataURL(fullInviteUrl, {
