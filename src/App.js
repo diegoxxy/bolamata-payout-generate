@@ -5,12 +5,21 @@ import QRCode from 'qrcode';
 // =========================================================================
 // CONFIGURATION
 // =========================================================================
-// Link CSV Publish to Web dari Google Sheets kamu
 const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSth0vcOvDqkZX9KcPKrJk0aPP_NpWSqUjIxUXTIT3pHJnL2hy2Igzv5FX3lOugqxedchSoi3R6V00f/pub?gid=1258406595&single=true&output=csv";
-
-// Nama file template PNG di folder public/ (contoh: public/template-payout.png)
 const TEMPLATE_IMAGE_NAME = '/template-payout.png';
 // =========================================================================
+
+// Helper Function untuk generate format Tanggal + Jam WIB
+const getFormattedWibDateTime = () => {
+  const now = new Date();
+  const optionsDate = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Jakarta' };
+  const optionsTime = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' };
+  
+  const dateStr = now.toLocaleDateString('id-ID', optionsDate);
+  const timeStr = now.toLocaleTimeString('id-ID', optionsTime).replace(':', '.');
+  
+  return `${dateStr}, ${timeStr} WIB`;
+};
 
 function App() {
   const [clipperList, setClipperList] = useState([]);
@@ -18,7 +27,7 @@ function App() {
 
   const [clipperName, setClipperName] = useState('Diego');
   const [manualNominal, setManualNominal] = useState('10000000');
-  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualDate, setManualDate] = useState(getFormattedWibDateTime());
   const [discordInvite, setDiscordInvite] = useState('https://discord.gg/rcwv5c5z8u');
   const [totalVideo, setTotalVideo] = useState('100');
 
@@ -33,7 +42,6 @@ function App() {
     return '';
   };
 
-  // 1. FETCH DATA GOOGLE SHEETS & AUTO PARSE PARAMETER URL (?row=3&autodownload=true)
   useEffect(() => {
     if (!GOOGLE_SHEETS_CSV_URL || GOOGLE_SHEETS_CSV_URL.includes("2PACX-1v...")) return;
 
@@ -50,14 +58,12 @@ function App() {
 
           setClipperList(validData);
 
-          // Cek Parameter URL dari Google Sheets (misal: ?row=3)
           const searchParams = new URLSearchParams(window.location.search);
           const rowParam = searchParams.get('row');
           const autoDownload = searchParams.get('autodownload');
 
           let targetIndex = 0;
           if (rowParam) {
-            // Karena row=2 di Google Sheets adalah data indeks ke-0 di array CSV
             const calculatedIdx = parseInt(rowParam, 10) - 2;
             if (calculatedIdx >= 0 && calculatedIdx < validData.length) {
               targetIndex = calculatedIdx;
@@ -69,7 +75,6 @@ function App() {
             loadClipperData(validData[targetIndex]);
           }
 
-          // Trigger Auto Download jika dipanggil via link Google Sheets
           if (autoDownload === 'true') {
             setTimeout(() => {
               handleDownload();
@@ -111,31 +116,24 @@ function App() {
     }
   };
 
-  // 2. RENDER CANVAS CARD DENGAN TEMPLATE PNG
+  // RENDER CANVAS CARD
   const renderCard = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // -----------------------------------------------------------------
-    // LOAD TEMPLATE BACKGROUND PNG DARI PUBLIC FOLDER
-    // -----------------------------------------------------------------
+    // 1. LOAD TEMPLATE BACKGROUND PNG
     const templateImg = new Image();
     templateImg.src = process.env.PUBLIC_URL + TEMPLATE_IMAGE_NAME;
 
     await new Promise((resolve) => {
       templateImg.onload = () => {
-        // Set resolusi Canvas sesuai gambar asli template PNG
         canvas.width = templateImg.width;
         canvas.height = templateImg.height;
-
-        // Draw Gambar Template PNG sebagai Background Utama
         ctx.drawImage(templateImg, 0, 0);
         resolve();
       };
       templateImg.onerror = () => {
-        console.error("Gagal memuat template PNG dari public folder.");
-        // Fallback dimensi jika gambar tidak ketemu
         canvas.width = 1000;
         canvas.height = 562;
         ctx.fillStyle = '#0a0b0d';
@@ -144,20 +142,17 @@ function App() {
       };
     });
 
-    // -----------------------------------------------------------------
-    // OVERLAY TEKS DINAMIS (Atur X & Y sesuai dengan desain PNG kamu)
-    // -----------------------------------------------------------------
-
+    // 2. OVERLAY TEKS DINAMIS
     // Nama Clipper (Kiri Atas)
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 32px Inter, sans-serif';
-    ctx.fillText(clipperName, 60, 80); // (Teks, X, Y)
+    ctx.fillText(clipperName, 60, 80);
 
-    // Tanggal Payout (Kanan Atas)
+    // Tanggal + Jam WIB (Kanan Atas)
     ctx.textAlign = 'right';
     ctx.fillStyle = '#8a94a6';
-    ctx.font = '500 18px Inter, sans-serif';
+    ctx.font = '500 16px Inter, sans-serif';
     ctx.fillText(`Date: ${manualDate}`, canvas.width - 60, 80);
 
     // Label "Total Payout" (Tengah)
@@ -181,33 +176,39 @@ function App() {
     ctx.font = '500 22px Inter, sans-serif';
     ctx.fillText(`Total Video Clipping: ${totalVideo}`, canvas.width / 2, 345);
 
-    // -----------------------------------------------------------------
-    // GENERATE QR CODE DISCORD (Kanan Bawah)
-    // -----------------------------------------------------------------
-    // -----------------------------------------------------------------
-    // LOAD LOGO BOLAMATA (Kiri Bawah)
-    // -----------------------------------------------------------------
+    // 3. LOAD LOGO BOLAMATA & SUB-TEXT (Kiri Bawah)
     const logoImg = new Image();
     logoImg.src = process.env.PUBLIC_URL + '/logo-bolamata.png';
 
     await new Promise((resolve) => {
       logoImg.onload = () => {
-        const logoWidth = 220;
+        const logoWidth = 200;
         const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
         const logoX = 60;
-        const logoY = canvas.height - 100;
+        const logoY = canvas.height - 105;
         ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
+
+        // Sub-teks di bawah logo
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#80eea9';
+        ctx.font = '600 10px Inter, sans-serif';
+        ctx.fillText('START CLIPPING & EARN COMMISSIONS', logoX, logoY + logoHeight + 14);
         resolve();
       };
       logoImg.onerror = () => {
-        // Fallback teks jika file logo-bolamata.png tidak ditemukan
         ctx.textAlign = 'left';
         ctx.fillStyle = '#ffffff';
         ctx.font = '900 28px Inter, sans-serif';
-        ctx.fillText('BOLAMATA', 60, canvas.height - 70);
+        ctx.fillText('BOLAMATA', 60, canvas.height - 75);
+
+        ctx.fillStyle = '#80eea9';
+        ctx.font = '600 10px Inter, sans-serif';
+        ctx.fillText('START CLIPPING & EARN COMMISSIONS', 60, canvas.height - 55);
         resolve();
       };
     });
+
+    // 4. GENERATE QR CODE DISCORD (Kanan Bawah)
     try {
       const fullInviteUrl = discordInvite.startsWith('http') ? discordInvite : `https://${discordInvite}`;
       const qrDataUrl = await QRCode.toDataURL(fullInviteUrl, {
@@ -246,7 +247,8 @@ function App() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement('a');
-    link.download = `PayoutCard_${clipperName.replace(/\s+/g, '_')}_${manualDate}.png`;
+    const cleanDate = manualDate.replace(/[/, :.]/g, '_');
+    link.download = `PayoutCard_${clipperName.replace(/\s+/g, '_')}_${cleanDate}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
@@ -321,11 +323,12 @@ function App() {
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '13px', color: '#aaa' }}>Tanggal Payout:</label>
+            <label style={{ display: 'block', fontSize: '13px', color: '#aaa' }}>Tanggal & Waktu Payout:</label>
             <input 
-              type="date" 
+              type="text" 
               value={manualDate} 
               onChange={(e) => setManualDate(e.target.value)}
+              placeholder="DD/MM/YYYY, HH.MM WIB"
               style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#1f242e', color: '#fff', border: '1px solid #333' }}
             />
           </div>
