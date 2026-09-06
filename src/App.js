@@ -7,6 +7,9 @@ import QRCode from 'qrcode';
 // =========================================================================
 // Link CSV Publish to Web dari Google Sheets kamu
 const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSth0vcOvDqkZX9KcPKrJk0aPP_NpWSqUjIxUXTIT3pHJnL2hy2Igzv5FX3lOugqxedchSoi3R6V00f/pub?gid=1258406595&single=true&output=csv";
+
+// Nama file template PNG di folder public/ (contoh: public/template-payout.png)
+const TEMPLATE_IMAGE_NAME = '/template-payout.png';
 // =========================================================================
 
 function App() {
@@ -30,7 +33,7 @@ function App() {
     return '';
   };
 
-  // 1. FETCH DATA GOOGLE SHEETS
+  // 1. FETCH DATA GOOGLE SHEETS & AUTO PARSE PARAMETER URL (?row=3&autodownload=true)
   useEffect(() => {
     if (!GOOGLE_SHEETS_CSV_URL || GOOGLE_SHEETS_CSV_URL.includes("2PACX-1v...")) return;
 
@@ -46,8 +49,31 @@ function App() {
           });
 
           setClipperList(validData);
-          if (validData.length > 0) {
-            loadClipperData(validData[0]);
+
+          // Cek Parameter URL dari Google Sheets (misal: ?row=3)
+          const searchParams = new URLSearchParams(window.location.search);
+          const rowParam = searchParams.get('row');
+          const autoDownload = searchParams.get('autodownload');
+
+          let targetIndex = 0;
+          if (rowParam) {
+            // Karena row=2 di Google Sheets adalah data indeks ke-0 di array CSV
+            const calculatedIdx = parseInt(rowParam, 10) - 2;
+            if (calculatedIdx >= 0 && calculatedIdx < validData.length) {
+              targetIndex = calculatedIdx;
+            }
+          }
+
+          setSelectedIndex(targetIndex);
+          if (validData[targetIndex]) {
+            loadClipperData(validData[targetIndex]);
+          }
+
+          // Trigger Auto Download jika dipanggil via link Google Sheets
+          if (autoDownload === 'true') {
+            setTimeout(() => {
+              handleDownload();
+            }, 800);
           }
         }
       },
@@ -85,61 +111,62 @@ function App() {
     }
   };
 
-  // 2. RENDER CANVAS CARD
+  // 2. RENDER CANVAS CARD DENGAN TEMPLATE PNG
   const renderCard = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Canvas Dimensions (16:9 Aspect Ratio)
-    canvas.width = 1000;
-    canvas.height = 562;
+    // -----------------------------------------------------------------
+    // LOAD TEMPLATE BACKGROUND PNG DARI PUBLIC FOLDER
+    // -----------------------------------------------------------------
+    const templateImg = new Image();
+    templateImg.src = process.env.PUBLIC_URL + TEMPLATE_IMAGE_NAME;
 
-    // Background Dark Aesthetic
-    const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bgGradient.addColorStop(0, '#0a0b0d');
-    bgGradient.addColorStop(0.5, '#12141a');
-    bgGradient.addColorStop(1, '#07080a');
-    ctx.fillStyle = bgGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await new Promise((resolve) => {
+      templateImg.onload = () => {
+        // Set resolusi Canvas sesuai gambar asli template PNG
+        canvas.width = templateImg.width;
+        canvas.height = templateImg.height;
 
-    // Glow Effect Background
-    ctx.save();
-    const glowGradient = ctx.createRadialGradient(850, 100, 10, 850, 100, 300);
-    glowGradient.addColorStop(0, 'rgba(0, 255, 102, 0.08)');
-    glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = glowGradient;
-    ctx.beginPath();
-    ctx.arc(850, 100, 300, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+        // Draw Gambar Template PNG sebagai Background Utama
+        ctx.drawImage(templateImg, 0, 0);
+        resolve();
+      };
+      templateImg.onerror = () => {
+        console.error("Gagal memuat template PNG dari public folder.");
+        // Fallback dimensi jika gambar tidak ketemu
+        canvas.width = 1000;
+        canvas.height = 562;
+        ctx.fillStyle = '#0a0b0d';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        resolve();
+      };
+    });
 
     // -----------------------------------------------------------------
-    // HEADER SECTION (Nama Clipper & Tanggal)
+    // OVERLAY TEKS DINAMIS (Atur X & Y sesuai dengan desain PNG kamu)
     // -----------------------------------------------------------------
+
     // Nama Clipper (Kiri Atas)
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 32px Inter, sans-serif';
-    ctx.fillText(clipperName, 60, 80);
+    ctx.fillText(clipperName, 60, 80); // (Teks, X, Y)
 
-    // Tanggal (Kanan Atas)
+    // Tanggal Payout (Kanan Atas)
     ctx.textAlign = 'right';
     ctx.fillStyle = '#8a94a6';
     ctx.font = '500 18px Inter, sans-serif';
-    ctx.fillText(`Date: ${manualDate}`, 940, 80);
+    ctx.fillText(`Date: ${manualDate}`, canvas.width - 60, 80);
 
-    // -----------------------------------------------------------------
-    // MAIN PAYOUT SECTION (Tengah)
-    // -----------------------------------------------------------------
+    // Label "Total Payout" (Tengah)
     ctx.textAlign = 'center';
-    
-    // Label Total Payout
     ctx.fillStyle = '#9da5b5';
     ctx.font = '500 24px Inter, sans-serif';
     ctx.fillText('Total Payout', canvas.width / 2, 190);
 
-    // Angka Nominal Transfer + Effect Glow Hijau
+    // Nominal Transfer + Glow Hijau (Tengah)
     const formattedNominal = Number(manualNominal.toString().replace(/[^0-9]/g, '')).toLocaleString('id-ID');
     ctx.save();
     ctx.shadowColor = '#00ff66';
@@ -149,53 +176,14 @@ function App() {
     ctx.fillText(`+Rp ${formattedNominal}`, canvas.width / 2, 275);
     ctx.restore();
 
-    // Total Video Clipping
+    // Total Video Clipping (Tengah)
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '500 22px Inter, sans-serif';
     ctx.fillText(`Total Video Clipping: ${totalVideo}`, canvas.width / 2, 345);
 
     // -----------------------------------------------------------------
-    // FOOTER SECTION (Separator, Logo Image, Instagram & QR Code)
+    // GENERATE QR CODE DISCORD (Kanan Bawah)
     // -----------------------------------------------------------------
-    // Separator Line
-    ctx.beginPath();
-    ctx.moveTo(60, 420);
-    ctx.lineTo(940, 420);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // Kiri Bawah: Load Logo BOLAMATA
-    const logoImg = new Image();
-    // Path/URL logo kamu (atau simpan gambar logo di folder /public/logo-bolamata.png)
-    logoImg.src = '/logo-bolamata.png'; 
-
-    await new Promise((resolve) => {
-      logoImg.onload = () => {
-        // Crop/Render bagian tulisan BOLAMATA saja (Memilih bagian kiri logo)
-        const logoWidth = 240;
-        const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-        ctx.drawImage(logoImg, 60, 435, logoWidth, logoHeight);
-        resolve();
-      };
-      // Fallback jika logo belum ter-load/error (Render via Text Custom Styling)
-      logoImg.onerror = () => {
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 28px Inter, sans-serif';
-        ctx.fillText('BOLAMATA', 60, 462);
-        resolve();
-      };
-    });
-
-    // Tagline / Kata-kata ajakan
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '600 15px Inter, sans-serif';
-    ctx.fillText('Start Clipping & Earn Commissions!', 60, 500);
-
-
-    // Kanan Bawah: QR Code Generator
     try {
       const fullInviteUrl = discordInvite.startsWith('http') ? discordInvite : `https://${discordInvite}`;
       const qrDataUrl = await QRCode.toDataURL(fullInviteUrl, {
@@ -209,8 +197,8 @@ function App() {
       await new Promise((resolve) => {
         qrImg.onload = () => {
           const qrSize = 80;
-          const qrX = 860;
-          const qrY = 435;
+          const qrX = canvas.width - 140;
+          const qrY = canvas.height - 120;
           ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
           ctx.textAlign = 'right';
@@ -232,6 +220,7 @@ function App() {
 
   const handleDownload = () => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const link = document.createElement('a');
     link.download = `PayoutCard_${clipperName.replace(/\s+/g, '_')}_${manualDate}.png`;
     link.href = canvas.toDataURL('image/png');
