@@ -192,7 +192,7 @@ function App() {
         ctx.textAlign = 'left';
         ctx.fillStyle = '#80eea9';
         ctx.font = '600 10px Inter, sans-serif';
-        ctx.fillText('START CLIPPING & EARN COMMISSIONS', logoX, logoY + logoHeight + 14);
+        ctx.fillText('Start Clipping & Earn Comissions!', logoX, logoY + logoHeight + 14);
         resolve();
       };
       logoImg.onerror = () => {
@@ -203,7 +203,7 @@ function App() {
 
         ctx.fillStyle = '#80eea9';
         ctx.font = '600 10px Inter, sans-serif';
-        ctx.fillText('START CLIPPING & EARN COMMISSIONS', 60, canvas.height - 55);
+        ctx.fillText('Start Clipping & Earn Comissions!', 60, canvas.height - 55);
         resolve();
       };
     });
