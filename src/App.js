@@ -98,7 +98,6 @@ function App() {
       'Convert Point Engagement'
     ]) || '100';
 
-    // TAMBAHAN: Mencakup header 'Total Payout Clippers' dari Google Sheets
     const rawNominal = getFieldValue(clipperRow, [
       'Total Payout Clippers',
       'Total Payout',
@@ -111,7 +110,6 @@ function App() {
     setTotalVideo(tx);
 
     if (rawNominal) {
-      // Bersihkan karakter non-digit (menghapus Rp, koma, titik, spasi)
       const cleanedNominal = rawNominal.replace(/[^0-9]/g, '');
       if (cleanedNominal) {
         setManualNominal(cleanedNominal);
@@ -153,7 +151,7 @@ function App() {
       };
     });
 
-    // 2. OVERLAY TEKS DINAMIS
+    // 2. OVERLAY TEKS DINAMIS (Warna Selaras Putih)
     // Nama Clipper (Kiri Atas)
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
@@ -162,17 +160,17 @@ function App() {
 
     // Tanggal + Jam WIB (Kanan Atas)
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#8a94a6';
+    ctx.fillStyle = '#ffffff';
     ctx.font = '500 16px Inter, sans-serif';
     ctx.fillText(`Date: ${manualDate}`, canvas.width - 60, 80);
 
     // Label "Total Payout" (Tengah)
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#9da5b5';
+    ctx.fillStyle = '#ffffff';
     ctx.font = '500 24px Inter, sans-serif';
     ctx.fillText('Total Payout', canvas.width / 2, 190);
 
-    // Nominal Transfer + Glow Hijau (Tengah)
+    // Nominal Transfer + Glow Hijau (Tengah - Tetap Hijau)
     const formattedNominal = Number(manualNominal.toString().replace(/[^0-9]/g, '')).toLocaleString('id-ID');
     ctx.save();
     ctx.shadowColor = '#00ff66';
@@ -183,7 +181,7 @@ function App() {
     ctx.restore();
 
     // Total Video Clipping (Tengah)
-    ctx.fillStyle = '#e2e8f0';
+    ctx.fillStyle = '#ffffff';
     ctx.font = '500 22px Inter, sans-serif';
     ctx.fillText(`Total Video Clipping: ${totalVideo}`, canvas.width / 2, 345);
 
@@ -193,54 +191,60 @@ function App() {
 
     await new Promise((resolve) => {
       logoImg.onload = () => {
-        const logoWidth = 200;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        const logoWidth = 260;
         const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
         const logoX = 60;
-        const logoY = canvas.height - 105;
+        const logoY = canvas.height - 118;
         ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
 
-        // Sub-teks di bawah logo
         ctx.textAlign = 'left';
         ctx.fillStyle = '#ffffff';
-        ctx.font = '600 10px Inter, sans-serif';
-        ctx.fillText('Start Clipping & Earn Comissions!', logoX, logoY + logoHeight + 14);
+        ctx.font = '200 18px Inter, sans-serif';
+        ctx.fillText('Start Clipping & Earn Comissions!', logoX, logoY + logoHeight + 25);
         resolve();
       };
       logoImg.onerror = () => {
         ctx.textAlign = 'left';
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 28px Inter, sans-serif';
+        ctx.font = '900 36px Inter, sans-serif';
         ctx.fillText('BOLAMATA', 60, canvas.height - 75);
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = '600 10px Inter, sans-serif';
-        ctx.fillText('Start Clipping & Earn Comissions!', 60, canvas.height - 55);
+        ctx.font = '600 12px Inter, sans-serif';
+        ctx.fillText('Start Clipping & Earn Comissions!', 60, canvas.height - 50);
         resolve();
       };
     });
 
-    // 4. GENERATE QR CODE DISCORD (Kanan Bawah)
+    // 4. GENERATE QR CODE DISCORD (Kanan Bawah - Positioned Center Under QR)
     try {
       const fullInviteUrl = discordInvite.startsWith('http') ? discordInvite : `https://${discordInvite}`;
       const qrDataUrl = await QRCode.toDataURL(fullInviteUrl, {
-        width: 100,
-        margin: 1,
-        color: { dark: '#FFFFFF', light: '#00000000' }
+        width: 120,
+        margin: 2,
+        color: { dark: '#000000', light: '#FFFFFF' }
       });
 
       const qrImg = new Image();
       qrImg.src = qrDataUrl;
       await new Promise((resolve) => {
         qrImg.onload = () => {
-          const qrSize = 80;
-          const qrX = canvas.width - 140;
-          const qrY = canvas.height - 120;
+          const qrSize = 85;
+          const qrX = canvas.width - 145;
+          const qrY = canvas.height - 125;
+          
+          // Gambar QR Code
           ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
-          ctx.textAlign = 'right';
-          ctx.fillStyle = '#717a8a';
-          ctx.font = '11px Inter, sans-serif';
-          ctx.fillText(discordInvite.replace(/^https?:\/\//, ''), qrX + qrSize, qrY + qrSize + 16);
+          // Teks Link Discord persis di Tengah Bawah QR Code
+          const qrCenterX = qrX + (qrSize / 2);
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '500 11px Inter, sans-serif';
+          ctx.fillText(discordInvite.replace(/^https?:\/\//, ''), qrCenterX, qrY + qrSize + 16);
           resolve();
         };
       });
